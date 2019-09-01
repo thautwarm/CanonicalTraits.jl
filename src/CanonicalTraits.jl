@@ -56,7 +56,14 @@ extract_method(stmt::Union{Expr, LineNumberNode})::Union{Tuple, LineNumberNode} 
         _            => stmt
     end
 
-function mk_method(trait :: Any, f :: Any, argsty :: Any, retty :: Any, syms :: Syms) where Syms <: AbstractArray{Symbol}
+function mk_method(
+    trait   :: Any,
+    f       :: Any,
+    argsty  :: Any,
+    retty   :: Any,
+    syms    :: Syms,
+    fn_deps :: Exprs = Expr[]
+) where {Syms <: AbstractArray{Symbol}, Exprs <: AbstractArray{Expr}}
     foralls = Any[]
     argsty  = extract_forall!(argsty, foralls)
     @when let :($tp{$(argtys...)}) = argsty,
@@ -66,8 +73,10 @@ function mk_method(trait :: Any, f :: Any, argsty :: Any, retty :: Any, syms :: 
         argnames = [Symbol(basename, i) for i in 1:length(argtys)]
         annos    = [:($argname :: $argty) for (argname, argty) in zip(argnames, argtys)]
         quote
-            function $f($(annos...))::$retty where {$(syms...), $(foralls...)}
-                $trait($(syms...)).$f($(argnames...))
+            function $f($(annos...)) where {$(syms...), $(foralls...)}
+                let $(fn_deps...)
+                    ($trait($(syms...)).$f($(argnames...)))::$retty
+                end
             end
         end
     @otherwise
@@ -88,13 +97,26 @@ function instance(trait :: Type{<:Trait})
 end
 
 function trait(sig, block)
+    fn_deps = Expr[]
+    @when :($hd where {$(args...)}) = sig begin
+        sig = hd
+        if !isempty(args)
+            fn_deps = map(args) do arg
+                @when :($_ = $_) = arg begin
+                    arg
+                @otherwise
+                    error("Malform functional dependency $arg for trait $sig.")
+                end
+            end
+        end
+    end
     @when let :($trait_ty{$(tvars...)}) = sig,
               Expr(:block, stmts...) = block
 
         tsyms      = map(extract_tvars, tvars)
         methods    = map(extract_method, stmts)
         methods    = filter(x -> !(x isa LineNumberNode), methods)
-        interfaces = [mk_method(trait_ty, f, argsty, retty, tsyms)
+        interfaces = [mk_method(trait_ty, f, argsty, retty, tsyms, fn_deps)
                       for (f, argsty, retty) in methods]
         instance_   = Symbol(string(trait_ty), "#instance")
         interface_names = map(first, methods)

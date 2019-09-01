@@ -20,47 +20,6 @@ end
 const default_to_string = instance(ToString)(Base.string)
 ToString(it) = default_to_string
 
-# using Polynomials
-# @trait Vect{V, E} begin
-#     coef       :: ([Num, V] where Num <: Number) => V
-#     vec_add    :: ([V, V]) => V
-#     scalar_add :: ([E, V]) => V
-# end
-
-# const polynomial_vect = instance(Vect)(
-#     function polynomial_coef(num::Num1, vec::Poly{Num2}) where {Num1 <: Number, Num2 <: Number}
-#         num * vec
-#     end,
-#     function polynomial_vec_add(vec1 :: Poly{Num}, vec2 :: Poly{Num}) where Num <: Number
-#         vec1 + vec2
-#     end,
-#     function polynomial_scalar_add(scalar::Num, vec::Poly{Num}) where Num <: Number
-#         scalar + vec
-#     end
-# )
-
-# Vect(::Type{Poly{Num}}, ::Type{Num}) where Num <: Number = polynomial_vect
-
-
-# @trait Dot{V} begin
-#     dot :: [V, V] => Real
-#     gram_schmidt :: [V, Set{V}] => V
-# end
-
-# const polynomial_dot = instance(Dot)(
-#     function poly_dot(v1 :: Poly{Num}, v2 :: Poly{Num})::Real where Num <: Number
-#         f = polyint(v1 * v2)
-#         f(1) - f(-1)
-#     end,
-#     function poly_gram_schmidt(v :: Poly{Num}, vs :: Set{Poly{Num}})::Poly{Num} where Num <: Number
-#         for other in vs
-#             coeff = dot(v, other)
-#         end
-#     end
-# )
-
-# Dot(::Type{Poly{<:Number}}) = polynomial_dot
-
 # 100 ⊕ 2 |> println
 # @btime 100 ⊕ 2
 # @btime 100 + 2
@@ -69,7 +28,7 @@ ToString(it) = default_to_string
 # @btime 1 ⊕ 2
 
 
-@testset "CanonicalTraits.jl" begin
+@testset "simple" begin
     # Write your own tests here.
     @test_throws Any begin
         "2" ⊕ "3"
@@ -84,5 +43,74 @@ ToString(it) = default_to_string
     end
 
     @test map(to_str, ["123", 10]) == map(string, ["123", 10])
+
+
+end
+
+
+using Polynomials
+
+function vect_infer_helper
+end
+
+@trait Vect{F, V} where {F = vect_infer_helper(V)} begin
+    scalar_mul :: [F, V] => V
+    vec_add    :: [V, V] => V
+    scalar_add :: [F, V] => V
+end
+
+vect_infer_helper(::Type{Poly{T}}) where T = T
+const polynomial_vect = instance(Vect)(
+    function polynomial_scalar_mul(num::F, vec::Poly{F}) where F <: Number
+        num * vec
+    end,
+    function polynomial_vec_add(vec1 :: Poly{F}, vec2 :: Poly{F}) where F <: Number
+        vec1 + vec2
+    end,
+    function polynomial_scalar_add(scalar::F, vec::Poly{F}) where F <: Number
+        scalar + vec
+    end
+)
+
+Vect(::Type{F}, ::Type{Poly{F}}) where F <: Number = polynomial_vect
+
+@trait Dot{F, V} where {F = vect_infer_helper(V)} begin
+    dot :: [V, V] => F
+    gram_schmidt :: [V, Set{V}] => V
+end
+
+
+function poly_dot(v1 :: Poly{F}, v2 :: Poly{F})::Real where F <: Number
+        f = polyint(v1 * v2)
+        f(1) - f(-1)
+end
+function poly_gram_schmidt(v :: Poly{F}, vs :: Set{Poly{F}})::Poly{F} where F <: Number
+    for other in vs
+        coef = dot(v, other) / dot(other, other)
+        v -= scalar_mul(coef, other)
+    end
+    scalar_mul(one(F)/sqrt(dot(v, v)), v)
+end
+
+const polynomial_dot = instance(Dot)(
+    poly_dot,
+    poly_gram_schmidt
+)
+
+Dot(::Type{F}, ::Type{Poly{F}}) where F <: Number = polynomial_dot
+
+@testset "polynomial orthogonalization" begin
+
+
+    @test scalar_add(5.0, Poly([2.0, 1.0])) == Poly([7.0, 1.0])
+    fx1 = Poly([1.0])
+    fx2 = Poly([0.0, 1.0])
+    T = typeof(fx1)
+    fx1_ot = gram_schmidt(fx1, Set(T[]))
+    fx2_ot = gram_schmidt(fx2, Set([fx1_ot]))
+
+    @test dot(fx1_ot, fx2_ot) ≈ 0
+    @test dot(fx1_ot, fx1_ot) ≈ 1
+    @test dot(fx2_ot, fx2_ot) ≈ 1
 
 end
