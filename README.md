@@ -51,14 +51,9 @@ julia> mempty(Int)
 
 julia> "1" ⊕ "2"
 ERROR: Not implemented trait Monoid for (String).
-Stacktrace:
- [1] error(::String) at ./error.jl:33
- [2] Monoid(::Type) at /home/redbq/github3/NameResolution/CanonicalTraits/src/CanonicalTraits.jl:124
- [3] ⊕(::String, ::String) at /home/redbq/github3/NameResolution/CanonicalTraits/src/CanonicalTraits.jl:70
- [4] top-level scope at REPL[8]:1
+Stacktrace: ...
 
 julia> using BenchmarkTools
-[ Info: Recompiling stale cache file /home/redbq/.julia/compiled/v1.2/BenchmarkTools/ZXPQo.ji for BenchmarkTools [6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf]
 
 julia> @btime 3 ⊕ 2
   0.018 ns (0 allocations: 0 bytes)
