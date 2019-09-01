@@ -71,6 +71,15 @@ constants/singletons for traits because it's a technique
 for static typing.
 
 
-\* For Haskell users: `MultiParamTypeClasses` is supported, and `FunctionalDependencies` not supported yet.
+\* For Haskell users: `MultiParamTypeClasses` is supported. `FunctionalDependencies` is supported as well but need an explicit inference rule, check [test/runtests.jl](https://github.com/thautwarm/CanonicalTraits.jl/blob/master/test/runtests.jl) and search `Dot` for more details.
+
+```julia
+@trait Dot{F, V} where {F = vect_infer_helper(V)} begin
+    dot :: [V, V] => F
+    gram_schmidt :: [V, Set{V}] => V
+end
+```
+
+
 
 Cannot list out all limitations here, if any problem, please open an issue or e-mail me.
