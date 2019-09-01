@@ -51,7 +51,8 @@ extract_forall!(var, coll::Vector{Any}) =
 
 extract_method(stmt::Union{Expr, LineNumberNode})::Union{Tuple, LineNumberNode} =
     @match stmt begin
-        :($f :: $arg => $ret) => (f, function_sig(arg),  function_sig(ret))
+        :($f :: [$(args...)] => $ret) => (f, function_sig(:[$(args...)]),  function_sig(ret))
+        :($f :: $arg => $ret) => (f, function_sig(:[$arg]),  function_sig(ret))
         _            => stmt
     end
 

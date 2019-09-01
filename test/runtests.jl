@@ -14,7 +14,7 @@ Monoid(::Type{Int}) = int_monoid
 Monoid(::Type{Vector{T}}) where T = vect_monoid(T)
 
 @trait ToString{A} begin # like Show in Haskell
-    to_str :: [A] => String
+    to_str :: A => String
 end
 
 const default_to_string = instance(ToString)(Base.string)
