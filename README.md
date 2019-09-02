@@ -21,8 +21,11 @@ Note, the form `@trait A{B, C, D <: Number, E <: AbstractString}` is supported a
 # Instance Definition
 
 ```julia
-const int_monoid = instance(Monoid)((::Type{Int}) -> 0, +)
-Monoid(::Type{Int}) = int_monoid
+@implement Monoid{Int} begin
+  mempty(::Type{Int}) = 0
+  a ⊕ b = a + b
+end
+
 
 3 ⊕ 2 # 5
 mempty(Int) # 0
@@ -30,38 +33,48 @@ mempty(Int) # 0
 
 # More
 
-```julia
+```
 julia> @trait Monoid{A} begin
-           mempty :: Type{A} => A
-           # a method with two arguments
-           (⊕)    :: [A, A] => A
+                  mempty :: Type{A} => A
+                  # a method with two arguments
+                  (⊕)    :: [A, A] => A
+              end
+
+
+julia> @implement Monoid{Num} where Num <: Number begin
+           mempty(::Type{Num}) = zero(Num)
+           (a :: Num) ⊕ (b :: Num) = a + b
        end
 
-julia> const int_monoid = instance(Monoid)((::Type{Int}) -> 0, +)
-getfield(Main, Symbol("Monoid#instance")){getfield(Main, Symbol("##3#4")),typeof(+)}(getfield(Main, Symbol("##3#4"))(), +)
+julia> using BenchmarkTools
 
-julia> Monoid(::Type{Int}) = int_monoid
-Monoid
-
-julia> 3 ⊕ 2 # 5
+julia> 3 ⊕ 2
 5
+
+julia> 3.0 ⊕ 2
+ERROR: MethodError: no method matching ⊕(::Float64, ::Int64)
+Closest candidates are:
+  ⊕(::A, ::A) where A
+
+julia> "" ⊕ ""
+ERROR: Not implemented trait Monoid for (String).
+
+julia> 3.0 ⊕ 2.0
+5.0
 
 julia> mempty(Int)
 0
 
-julia> "1" ⊕ "2"
-ERROR: Not implemented trait Monoid for (String).
-Stacktrace: ...
+julia> mempty(Float32)
+0.0f0
 
-julia> using BenchmarkTools
-
-julia> @btime 3 ⊕ 2
+julia> @btime 100 ⊕ 200
   0.018 ns (0 allocations: 0 bytes)
-5
+300
 
-julia> @btime 3 + 2
+julia> @btime 100 + 200
   0.018 ns (0 allocations: 0 bytes)
-5
+300
 ```
 
 # Limitations
