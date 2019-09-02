@@ -1,14 +1,38 @@
 function mk_method(
     trait     :: Any,
     interface :: MethodInterface,
-    syms      :: Syms,
-    fn_deps   :: Exprs = Expr[]
-) where {Syms <: AbstractArray{Symbol}, Exprs <: AbstractArray{Expr}}
-    argsty  = interface.argsty
-    retty   = interface.retty
-    f       = interface.name
-    foralls = Any[]
-    argsty  = extract_forall!(argsty, foralls)
+    syms      :: Syms, # all typeclass parameters
+    fn_deps   :: Exprs # all functional dependencies
+) where {Syms <: AbstractArray{Symbol}, Exprs <: AbstractArray{Pair{Symbol, Expr}}}
+    argsty     = interface.argsty
+    retty      = interface.retty
+    f          = interface.name
+    infer      = interface.infer
+    fresh      = interface.fresh
+
+    # these typeclass parameters can be inferred directly by arguments
+    infer_by_dispatch = intersect!(infer, syms)
+
+    # these typeclass parameters must be able to inferred by functional dependencies,
+    # otherwise raise error.
+    infer_by_fn_deps  = setdiff!(Set(syms), infer_by_dispatch)
+    help_infer = Expr[]
+    for (sym, fn_dep) in fn_deps
+        if sym in infer_by_fn_deps
+            push!(help_infer, fn_dep)
+            delete!(infer_by_fn_deps, sym)
+        end
+    end
+
+    # remainder of typeclass parameters that cannot get inferred
+    if !isempty(infer_by_fn_deps)
+        cannot_infer_anyway = join(map(string, infer_by_fn_deps), ", ")
+        error(
+            "Cannot infer type param(s) ($cannot_infer_anyway) for method $f, trait $trait; "*
+            "Please add functional dependencies."
+        )
+    end
+
     @when let :($tp{$(argtys...)}) = argsty,
               (tp === Tuple).?
 
@@ -16,10 +40,9 @@ function mk_method(
         argnames = [Symbol(basename, i) for i in 1:length(argtys)]
         annos    = [:($argname :: $argty) for (argname, argty) in zip(argnames, argtys)]
         quote
-            function $f($(annos...)) where {$(syms...), $(foralls...)}
-                let $(fn_deps...)
-                    ($trait($(syms...)).$f($(argnames...)))::$retty
-                end
+            function $f($(annos...)) where {$(infer_by_dispatch...), $(fresh...)}
+                $(help_infer...)
+                ($trait($(syms...)).$f($(argnames...)))::$retty
             end
         end
     @otherwise
@@ -53,13 +76,13 @@ function default_method_maker(trait, n)
 end
 
 function trait(@nospecialize(sig), @nospecialize(block))
-    fn_deps = Expr[]
+    fn_deps = Vector{Pair{Symbol, Expr}}()
     @when :($hd where {$(args...)}) = sig begin
         sig = hd
         if !isempty(args)
-            fn_deps = map(args) do arg
-                @when :($_ = $_) = arg begin
-                    arg
+            foreach(args) do arg
+                @when :($(f :: Symbol) = $_) = arg begin
+                    push!(fn_deps, f => arg)
                 @otherwise
                     error("Malform functional dependency $arg for trait $sig.")
                 end

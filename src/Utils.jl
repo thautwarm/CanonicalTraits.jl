@@ -10,6 +10,20 @@ abstract type Trait{P <: TraitParam} end
 
 abstract type TraitInstance end
 
+struct MethodInterface
+    name     :: Symbol
+    argsty   :: Any
+    retty    :: Any
+    fresh    :: Vector{Any}
+    infer    :: Set{Symbol} # including type class parameters inferred in callsites.
+end
+
+struct DefaultMethod
+    name :: Symbol
+    impl :: Expr
+end
+ClassMethod = Union{LineNumberNode, MethodInterface, DefaultMethod}
+
 function extract_default(impl::LineNumberNode) end
 function extract_default(@nospecialize(impl))
     function extract_default_inner(call)
@@ -43,23 +57,25 @@ function collect_default!(@nospecialize(impl), syms :: Set{Symbol})
 end
 
 
+extract_method_interface(f::Symbol, argtys::AbstractArray, retty::Any, fresh::AbstractArray) =
+    begin
+    argsty = :($Tuple{$(argtys...)})
+    infer  = occurred_sym(:($argsty where {$(fresh...)}))
+    MethodInterface(f, argsty, retty, fresh, infer)
+    end
+
 extract_method(stmt::Union{Expr, LineNumberNode})::ClassMethod =
     @match stmt begin
-        :($f :: [$(args...)] => $ret) => MethodInterface(f, function_sig(:[$(args...)]),  function_sig(ret))
-        :($f :: $arg => $ret)         => MethodInterface(f, function_sig(:[$arg]),  function_sig(ret))
+        :($f :: [$(args...)] where {$(fresh...)} => $ret) => extract_method_interface(f, args, ret, fresh)
+        :($f :: [$(args...)] => $ret)                     => extract_method_interface(f, args, ret, Any[])
+        :($f :: $arg where {$(fresh...)} => $ret)         => extract_method_interface(f, [arg], ret, fresh)
+        :($f :: $arg => $ret)                             => extract_method_interface(f, [arg], ret, Any[])
         ::LineNumberNode              => stmt
         _                             => begin
             def = extract_default(stmt)
             def === nothing && error("Malformed method interface or default method $stmt.")
             DefaultMethod(def[1], def[2])
         end
-    end
-
-function_sig(sig) =
-    @match sig begin
-        :[$(args...)] => :($Tuple{$(map(function_sig, args)...)})
-        Expr(hd, tl...) => Expr(hd, map(function_sig, tl)...)
-        a => a
     end
 
 extract_tvars(var :: Union{Symbol, Expr})::Symbol =
@@ -71,22 +87,28 @@ extract_tvars(var :: Union{Symbol, Expr})::Symbol =
         a::Symbol         => a
     end
 
-extract_forall!(var, coll::Vector{Any}) =
-    @match var begin
-        :($a where {$(tvars...)}) => begin
-                append!(coll, tvars)
-                extract_forall!(a, coll)
-            end
-        Expr(hd, tl...) => Expr(hd, map(x -> extract_forall!(x, coll), tl)...)
-        a => a
-    end
-
 struct TypeParams
     as_arguments  :: Vector{Expr}
     as_where      :: Vector{Symbol}
 end
+
 TypeParams(syms :: Syms) where Syms <: AbstractArray{Symbol} =
     TypeParams(
        [:(::Type{$sym}) for sym in syms],
        syms
     )
+
+function occurred_sym(sig)::Set{Symbol}
+    @match sig begin
+        Expr(hd)              => Set(Symbol[])
+        :[$(args...)]         => union!(map(occurred_sym, args)...)
+        :($a where {$(b...)}) => setdiff!(occurred_sym(a), map(extract_tvars, b))
+        Expr(_, tl...)        => union!(map(occurred_sym, tl)...)
+        a :: Symbol           => Set([a])
+        _                     => Set(Symbol[])
+    end
+end
+
+function get_functional_dependency(expr)
+    error("Malformed functional dependency $expr, example expected form is '{T2 = f(T1), T3 = g(T1)}'")
+end

@@ -116,3 +116,36 @@ end
     @test dot(fx2_ot, fx2_ot) ≈ 1
 
 end
+
+using MLStyle
+function type_constructor_from_hkt end
+function type_argument_from_hkt end
+function type_app end
+
+# type app representation
+struct App{Cons, K₀}
+    injected :: Any
+end
+
+@trait Higher{Cons, K₀, K₁} where {
+    Cons=type_constructor_from_hkt(K₁),
+    K₀=type_argument_from_hkt(K₁),
+    K₁=type_app(Cons, K₀)
+} begin
+    inj :: K₁ => App{Cons, K₀}
+    inj(data::K₁) = App{Cons, K₀}(data)
+    prj :: App{Cons, K₀} => K₁
+    prj(data::App{Cons, K₀})::K₁ = data.injected
+end
+
+abstract type HKVect end
+Base.@pure type_constructor_from_hkt(::Type{Vector{T}}) where T = HKVect
+Base.@pure type_argument_from_hkt(::Type{Vector{T}}) where T = T
+Base.@pure type_app(::Type{HKVect}, ::Type{T}) where T = Vector{T}
+@implement Higher{HKVect, T, Vector{T}} where T
+
+@testset "higher kinded" begin
+    hkt_vect = inj([1, 2, 3])
+    @test (hkt_vect |> typeof) == App{HKVect, Int}
+    @test prj(hkt_vect) == [1, 2, 3]
+end
