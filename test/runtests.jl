@@ -83,23 +83,22 @@ vect_infer_helper(::Type{Poly{T}}) where T = T
     end
 end
 
-
-@trait Dot{F, V} where {F = vect_infer_helper(V)} begin
+@trait Dot{F <: Number, V} where {F = vect_infer_helper(V)} begin
     dot :: [V, V] => F
     gram_schmidt :: [V, Set{V}] => V
-end
-
-@implement Dot{F, Poly{F}} where F <: Number begin
-    function dot(v1 :: Poly{F}, v2 :: Poly{F})::Real where F <: Number
-            f = polyint(v1 * v2)
-            f(1) - f(-1)
-    end
     function gram_schmidt(v :: Poly{F}, vs :: Set{Poly{F}})::Poly{F} where F <: Number
         for other in vs
             coef = dot(v, other) / dot(other, other)
             v = vec_sub(v, scalar_mul(coef, other))
         end
         scalar_div(v, sqrt(dot(v, v)))
+    end
+end
+
+@implement Dot{F, Poly{F}} where F <: Number begin
+    function dot(v1 :: Poly{F}, v2 :: Poly{F})::Real where F <: Number
+            f = polyint(v1 * v2)
+            f(1) - f(-1)
     end
 end
 
