@@ -86,7 +86,7 @@ end
 @trait Dot{F <: Number, V} where {F = vect_infer_helper(V)} begin
     dot :: [V, V] => F
     gram_schmidt :: [V, Set{V}] => V
-    function gram_schmidt(v :: Poly{F}, vs :: Set{Poly{F}})::Poly{F} where F <: Number
+    function gram_schmidt(v :: V, vs :: Vector{V})::V where F <: Number
         for other in vs
             coef = dot(v, other) / dot(other, other)
             v = vec_sub(v, scalar_mul(coef, other))
