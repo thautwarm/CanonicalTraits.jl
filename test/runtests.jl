@@ -1,5 +1,6 @@
 using CanonicalTraits
 using Test
+import LinearAlgebra
 
 @trait Monoid{A} begin
     mempty :: Type{A} => A
@@ -85,7 +86,7 @@ end
 
 @trait Dot{F <: Number, V} where {F = vect_infer_helper(V)} begin
     dot :: [V, V] => F
-    gram_schmidt :: [V, Set{V}] => V
+    gram_schmidt :: [V, Vector{V}] => V
     function gram_schmidt(v :: V, vs :: Vector{V})::V where F <: Number
         for other in vs
             coef = dot(v, other) / dot(other, other)
@@ -102,18 +103,45 @@ end
     end
 end
 
+vect_infer_helper(::Type{Tuple{F, F}}) where F<:Number = F
+
+@implement Vect{F, Tuple{F, F}} where F <: Number begin
+    scalar_add(num, vec) =
+        (vec[1] + num, vec[2] + num)
+    vec_add(vec1, vec2) =
+        (vec1[1] + vec2[1], vec1[2] + vec2[2])
+    scalar_mul(num, vec) =
+        (num * vec[1], num * vec[2])
+end
+
+@implement Dot{F, Tuple{F, F}} where F <: Number begin
+    function dot(v1, v2)
+        LinearAlgebra.dot(F[v1[1], v1[2]], F[v2[1], v2[2]])
+    end
+end
+
 @testset "polynomial orthogonalization" begin
 
     @test scalar_add(5.0, Poly([2.0, 1.0])) == Poly([7.0, 1.0])
     fx1 = Poly([1.0])
     fx2 = Poly([0.0, 1.0])
     T = typeof(fx1)
-    fx1_ot = gram_schmidt(fx1, Set(T[]))
-    fx2_ot = gram_schmidt(fx2, Set([fx1_ot]))
+    fx1_ot = gram_schmidt(fx1, T[])
+    fx2_ot = gram_schmidt(fx2, T[fx1_ot])
 
     @test dot(fx1_ot, fx2_ot) ≈ 0
     @test dot(fx1_ot, fx1_ot) ≈ 1
     @test dot(fx2_ot, fx2_ot) ≈ 1
+
+    fx1 = (1.0, 2.0)
+    fx2 = (3.0, 5.0)
+    T = typeof(fx1)
+    fx1_ot = gram_schmidt(fx1, T[])
+    fx2_ot = gram_schmidt(fx2, T[fx1_ot])
+
+    @test dot(fx1_ot, fx2_ot) + 1.0 ≈ 1.0
+    @test dot(fx1_ot, fx1_ot) ≈ 1.0
+    @test dot(fx2_ot, fx2_ot) ≈ 1.0
 
 end
 
