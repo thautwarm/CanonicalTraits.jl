@@ -33,7 +33,7 @@ mempty(Int) # 0
 
 # More
 
-```
+```julia
 julia> @trait Monoid{A} begin
                   mempty :: Type{A} => A
                   # a method with two arguments
