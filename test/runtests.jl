@@ -177,3 +177,21 @@ Base.@pure type_app(::Type{HKVect}, ::Type{T}) where T = Vector{T}
     @test (hkt_vect |> typeof) == App{HKVect, Int}
     @test prj(hkt_vect) == [1, 2, 3]
 end
+
+
+@trait P{A} begin
+    fx :: A => Int
+end
+
+@implement P{Symbol} begin
+    fx(x) = 1
+end
+
+@implement P{Tuple{T, T}} where T begin
+    fx(x) = fx(x[1]) + fx(x[2])
+end
+
+@testset "mutually referencing" begin
+    @test fx(:a) == 1
+    @test fx((:a, :b)) == 2
+end

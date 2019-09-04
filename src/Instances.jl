@@ -11,7 +11,7 @@ function implement(trait::Type{<:Trait}, @nospecialize(impls), type_params :: Ab
     for i in 1:length(methods)
         push!(
             defs,
-            @when (name, impl) = extract_default(methods[i]) begin
+            @when (name, impl) = extract_impl(methods[i]) begin
                 delete!(not_impls, name)
                 name => impl
             @otherwise

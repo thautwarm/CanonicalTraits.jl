@@ -47,7 +47,6 @@ function extract_default(@nospecialize(impl))
     (name, impl)
 end
 
-
 function collect_default!(impl::LineNumberNode, syms :: Set{Symbol}) end
 function collect_default!(@nospecialize(impl), syms :: Set{Symbol})
     found_func = extract_default(impl)
@@ -55,6 +54,34 @@ function collect_default!(@nospecialize(impl), syms :: Set{Symbol})
     push!(syms, found_func[1])
     nothing
 end
+
+function extract_impl(impl::LineNumberNode) end
+function extract_impl(@nospecialize(impl))
+    function extract_impl_inner!(call)
+        @when (:($f($(_...)))) && if f isa Symbol end = call begin
+            # fix mutual references when implementing interfaces.
+            call.args[1] = gensym(f)
+            f
+        @when f::Symbol = call
+            f
+        @when :($f :: $_) = call
+            extract_impl_inner!(f)
+        @when :($f where {$(_...)}) = call
+            extract_impl_inner!(f)
+        @otherwise
+            nothing
+        end
+    end
+    name = @match impl begin
+        Expr(:function, call, _)    => extract_impl_inner!(call)
+        Expr(:(=), call, _)         => extract_impl_inner!(call)
+        Expr(:macrocall, _..., arg) => extract_impl_inner!(arg)
+        _ => nothing
+    end
+    name === nothing && return nothing
+    (name, impl)
+end
+
 
 
 extract_method_interface(f::Symbol, argtys::AbstractArray, retty::Any, fresh::AbstractArray) =
