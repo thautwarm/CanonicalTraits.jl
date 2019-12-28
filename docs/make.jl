@@ -14,4 +14,5 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/thautwarm/CanonicalTraits.jl",
+    target="build"
 )
