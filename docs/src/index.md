@@ -3,10 +3,6 @@
 ```@index
 ```
 
-```@autodocs
-Modules = [CanonicalTraits]
-```
-
 
 
 ## Trait Definition
