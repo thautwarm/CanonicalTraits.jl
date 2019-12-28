@@ -1,4 +1,4 @@
-function implement(trait::Type{<:Trait}, @nospecialize(impls), type_params :: AbstractArray, freshvars :: AbstractArray)
+function implement(line::LineNumberNode, trait::Type{<:Trait}, @nospecialize(impls), type_params :: AbstractArray, freshvars :: AbstractArray)
     mnames    = fieldnames(CanonicalTraits.instance(trait)) |> collect
     not_impls = mnames |> Set
     methods = @when Expr(:block, stmts...) = impls begin
@@ -40,32 +40,34 @@ function implement(trait::Type{<:Trait}, @nospecialize(impls), type_params :: Ab
     end
 
     argtypes = [:(::Type{$tp}) for tp in type_params]
-    quote
-        function (::Type{$trait})($(argtypes...)) where {$(freshvars...)}
+    @q begin
+        $line
+        Base.@generated $line function (::Type{$trait})($(argtypes...)) where {$(freshvars...)}
+            $line
             $(cg_defs...)
             $(instance(trait))($([name_maps[mname] for mname in mnames]...))
         end
     end
 end
 
-function implement(@nospecialize(sig), @nospecialize(block), mod::Module)
+function implement(source::LineNumberNode, @nospecialize(sig), @nospecialize(block), mod::Module)
     freshvars = Any[]
     @when :($trait where {$(freshvars_...)}) = sig begin
         sig = trait
         freshvars = freshvars_
     end
     @when :($trait{$(type_params...)}) = sig begin
-        implement(mod.eval(trait), block, type_params, freshvars)
+        implement(source, mod.eval(trait), block, type_params, freshvars)
     @otherwise
-        error("Instance should be in form of 'Trait{A, B, C, D}' instead of $sig.")
+        error("Instance should be in form of 'Trait{A, B, C, D}' instead of '$sig'.")
 
     end
 end
 
 macro implement(@nospecialize(sig), @nospecialize(block))
-    implement(sig, block, __module__) |> esc
+    implement(__source__, sig, block, __module__) |> esc
 end
 
 macro implement(@nospecialize(sig))
-    implement(sig, Expr(:block), __module__) |> esc
+    implement(__source__, sig, Expr(:block), __module__) |> esc
 end

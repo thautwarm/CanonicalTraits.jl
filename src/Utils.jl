@@ -139,3 +139,14 @@ end
 function get_functional_dependency(expr)
     error("Malformed functional dependency $expr, example expected form is '{T2 = f(T1), T3 = g(T1)}'")
 end
+
+function rmlines!(ex::Expr)
+    ex.args = [rmlines!(arg) for arg in ex.args if !isa(arg, LineNumberNode)]
+    ex
+end
+
+rmlines!(a) = a
+
+macro q(exp)
+   Expr(:quote, rmlines!(exp))
+end

@@ -26,7 +26,7 @@ function mk_method(
 
     # remainder of typeclass parameters that cannot get inferred
     if !isempty(infer_by_fn_deps)
-        cannot_infer_anyway = join(map(string, infer_by_fn_deps), ", ")
+        cannot_infer_anyway = join(map(string, collect(infer_by_fn_deps)), ", ")
         error(
             "Cannot infer type param(s) ($cannot_infer_anyway) for method $f, trait $trait; "*
             "Please add functional dependencies."
@@ -39,7 +39,7 @@ function mk_method(
         basename = gensym(string(f))
         argnames = [Symbol(basename, i) for i in 1:length(argtys)]
         annos    = [:($argname :: $argty) for (argname, argty) in zip(argnames, argtys)]
-        quote
+        @q begin
             function $f($(annos...)) where {$(infer_by_dispatch...), $(fresh...)}
                 $(help_infer...)
                 ($trait($(syms...)).$f($(argnames...)))::$retty
@@ -52,7 +52,7 @@ end
 
 function mk_default_impl(tparams::TypeParams, default_method :: DefaultMethod)
     mk_name = Symbol("mk.", default_method.name)
-    mkfn   = quote
+    mkfn   = @q begin
         $mk_name($(tparams.as_arguments...)) where {$(tparams.as_where...)} = $(default_method.impl)
     end
     (default_method.name, mk_name, mkfn)
@@ -75,7 +75,7 @@ function default_method_maker(trait, n)
     error("No default method $(f(n)) for $trait.")
 end
 
-function trait(@nospecialize(sig), @nospecialize(block))
+function trait(line::LineNumberNode, @nospecialize(sig), @nospecialize(block))
     fn_deps = Vector{Pair{Symbol, Expr}}()
     @when :($hd where {$(args...)}) = sig begin
         sig = hd
@@ -111,16 +111,19 @@ function trait(@nospecialize(sig), @nospecialize(block))
             let triples = map(x -> mk_default_impl(tparams, x), default_impls)
                 map(x->x[3], triples),
                 map(triples) do (default_name, default_maker_name, _)
-                    quote
+                    @q begin
+                        $line
                         $CanonicalTraits.default_method_maker(
                             ::Type{$trait_ty},
                             ::Val{$(QuoteNode(default_name))}
                         ) = $default_maker_name
+                        $line
                     end
                 end
 
             end
-        quote
+        @q begin
+            $line
             abstract type $sig <: $Trait{$(mk_trait(tsyms))} end
             struct $instance_name{$(method_types...)}
                 $(cg_fields...)
@@ -129,6 +132,7 @@ function trait(@nospecialize(sig), @nospecialize(block))
             $(cg_interfaces...)
             $(make_default_makers...)
             $(ask_default_makers...)
+            $line
         end
     @otherwise
         error("Malformed trait $sig definition.")
@@ -136,7 +140,7 @@ function trait(@nospecialize(sig), @nospecialize(block))
 end
 
 macro trait(@nospecialize(sig), block=Expr(:block))
-    trait(sig, block) |> esc
+    trait(__source__, sig, block) |> esc
 end
 
 (trait::Type{<:Trait})(types...) = begin

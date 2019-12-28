@@ -1,10 +1,11 @@
 name = "CanonicalTraits"
 uuid = "a603d957-0e48-4f86-8fbd-0b7bc66df689"
 authors = ["thautwarm"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 
 [compat]
 julia = "1"
