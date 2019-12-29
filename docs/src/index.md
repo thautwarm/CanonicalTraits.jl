@@ -229,7 +229,7 @@ ERROR: Not implemented trait InnerProduct for (Real, Array{Float64,1}).
 Okay, we should implement `InnerProduct{Real, Vector{Float64}}`.
 
 ```julia
-julia> @implement InnerProduct{Real, Vector{Float64}} begin
+julia> @implement! InnerProduct{T, Vector{Float64}} where T <: Real begin
            dot(a, b) = sum([ai*bi  for (ai, bi) in zip(a, b)])
        end
 
@@ -240,10 +240,10 @@ ERROR: Not implemented trait Vect for (Float64, Array{Float64,1}).
 Okay, we implement `Vect{Real, Vector{Float64}}`.
 
 ```julia
-julia> @implement Vect{Real, Vector{Float64}} begin
-          vec_add(x, y) = Float64[xi + yi for (xi, yi) in zip(x, y)]
-          scalar_mul(a, x) = Float64[(a)xi for xi in x]
-       end
+julia> @implement! Vect{T, Vector{Float64}} where T <: Real begin
+        vec_add(x, y) = Float64[xi + yi for (xi, yi) in zip(x, y)]
+        scalar_mul(a, x) = Float64[(a)xi for xi in x]
+    end
 julia> gram_schmidt!([1.0, 1, 1], [[1.0, 0, 0], [0, 1.0, 0]])
 3-element Array{Float64,1}:
  0.0
