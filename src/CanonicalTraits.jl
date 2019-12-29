@@ -1,7 +1,7 @@
 module CanonicalTraits
 using MLStyle
 
-export @trait, @implement, instance
+export @trait, @implement, instance, @implement!
 
 include("Utils.jl")
 include("Typeclasses.jl")

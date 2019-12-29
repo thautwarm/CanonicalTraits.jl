@@ -84,7 +84,7 @@ vect_infer_helper(::Type{Poly{T}}) where T = T
     end
 end
 
-@trait Dot{F <: Number, V} where {F = vect_infer_helper(V)} begin
+@trait Vect{F, V} >: Dot{F <: Number, V} where {F = vect_infer_helper(V)} begin
     dot :: [V, V] => F
     gram_schmidt :: [V, Vector{V}] => V
     function gram_schmidt(v :: V, vs :: Vector{V})::V where F <: Number
@@ -194,4 +194,43 @@ end
 @testset "mutually referencing" begin
     @test fx(:a) == 1
     @test fx((:a, :b)) == 2
+end
+
+@trait Add1{T <: Number} begin
+    add1 :: [T] => T
+end
+
+@trait Add1{T} >: Addn{T <: Number} begin
+    addn :: [Int, T] => T
+    addn(n, x) = let s = x; for i in 1:n; s = add1(s) end; s; end
+end
+
+@implement Add1{Int} begin
+    add1(x) = x + 1
+end
+
+@implement Addn{Int}
+
+@testset "class inheritance" begin
+    @test add1(1) == 2
+    @test addn(5, 1) == 6
+    @test "Not implemented trait Add1 for (Float64)." == try
+        addn(2, 1.9)
+        ""
+    catch e
+        strip(e.msg)
+    end
+end
+
+@implement! Add1{T} >: Add1{Vector{T}} where T begin
+    add1(xs) = add1.(xs)
+end
+
+@testset "instance inheritance" begin
+    @test add1([1, 2, 3]) == [2, 3, 4]
+    @test "Not implemented trait Add1 for (Float64)." == try
+        add1([1.])
+    catch e
+        strip(e.msg)
+    end
 end

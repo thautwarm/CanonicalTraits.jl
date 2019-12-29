@@ -68,6 +68,7 @@ mk_trait(syms::Syms) where Syms <: AbstractArray{Symbol} =
 get_instance_type
 """
 function instance end
+function check_inheritance end
 function implement end
 function default_method_maker(trait, n)
     @assert n isa Val
@@ -77,6 +78,8 @@ end
 
 function trait(line::LineNumberNode, @nospecialize(sig), @nospecialize(block))
     fn_deps = Vector{Pair{Symbol, Expr}}()
+    sups, sig = extract_trait_mk(sig)
+
     @when :($hd where {$(args...)}) = sig begin
         sig = hd
         if !isempty(args)
@@ -89,6 +92,7 @@ function trait(line::LineNumberNode, @nospecialize(sig), @nospecialize(block))
             end
         end
     end
+
     @when let :($trait_ty{$(tvars...)}) = sig,
               Expr(:block, stmts...)    = block
 
@@ -128,6 +132,10 @@ function trait(line::LineNumberNode, @nospecialize(sig), @nospecialize(block))
             struct $instance_name{$(method_types...)}
                 $(cg_fields...)
             end
+           $CanonicalTraits.check_inheritance(::Type{$trait_ty}, $(tsyms...)) = begin
+               $(sups...)
+               nothing
+            end
             $CanonicalTraits.instance(::Type{$trait_ty}) = $instance_name
             $(cg_interfaces...)
             $(make_default_makers...)
@@ -144,6 +152,7 @@ macro trait(@nospecialize(sig), block=Expr(:block))
 end
 
 (trait::Type{<:Trait})(types...) = begin
+    CanonicalTraits.check_inheritance(trait, types...)
     types = join(map(string, types), ", ")
     error("Not implemented trait $trait for ($types).")
 end

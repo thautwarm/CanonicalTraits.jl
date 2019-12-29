@@ -140,6 +140,23 @@ function get_functional_dependency(expr)
     error("Malformed functional dependency $expr, example expected form is '{T2 = f(T1), T3 = g(T1)}'")
 end
 
+function extract_trait_mk(sig)
+    sups = Expr[]
+    @when :($sup >: $me) = sig begin
+        sig = me
+        for each in @match sup begin
+            :[$(elts...)] => elts
+            ::Expr        => Expr[sup]
+            _             => error("Malformed parent trait: expect form a{b, c}, got $sup.")
+        end
+            @match each begin
+                :($a{$(b...)}) => begin push!(sups, Expr(:call, a, b...)); nothing end
+                _ => error("Malformed parent trait: expect form a{b, c}, got $each.")
+            end
+        end
+    end
+    sups, sig
+end
 function rmlines!(ex::Expr)
     ex.args = [rmlines!(arg) for arg in ex.args if !isa(arg, LineNumberNode)]
     ex
