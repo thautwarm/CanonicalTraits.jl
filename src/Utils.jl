@@ -157,6 +157,7 @@ function extract_trait_mk(sig)
     end
     sups, sig
 end
+
 function rmlines!(ex::Expr)
     ex.args = [rmlines!(arg) for arg in ex.args if !isa(arg, LineNumberNode)]
     ex

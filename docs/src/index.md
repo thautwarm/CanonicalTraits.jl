@@ -3,7 +3,14 @@
 ```@index
 ```
 
+## Features
 
+1. [Zero-cost](#Zero-cost) abstractions(via `@implement!`)
+2. Multiple-param traits
+3. Functional dependencies
+4. Implemented via dictionay passing algorithm
+5. Elegant notations
+6. Flexible Instances & Flexible Classes
 
 ## Trait Definition
 
@@ -19,6 +26,9 @@ Above code gives a naive implementation of `+`.
 `(+) :: [L, R] => Any` says `(+)` is a function that takes 2 arguments typed `L` and `R`, and return an `Any`.
 
 `(+) = Base.:+` says `+` has a default implementation `Base.:+`.
+
+
+Note, the form `@trait A{B, C, D <: Number, E <: AbstractString}` is supported as well.
 
 ## Implementation
 
@@ -107,6 +117,46 @@ vect_infer_helper(::Type{Tuple{F, F}}) where F<:Number = F
 end
 ```
 
+## Flexible Instances & Flexible Classes
+
+```julia
+@trait Add1{T <: Number} begin
+    add1 :: [T] => T
+end
+@trait Add1{T} >: Addn{T <: Number} begin
+    addn :: [Int, T] => T
+    addn(n, x) = let s = x; for i in 1:n; s = add1(s) end; s; end
+end
+
+@implement Add1{Int} begin
+    add1(x) = x + 1
+end
+@implement Addn{Int}
+@implement! Add1{T} >: Add1{Vector{T}} where T begin
+    add1(xs) = add1.(xs)
+end
+```
+
+Then we can use them this way:
+
+```julia-repl
+julia> add1([1])
+1-element Array{Int64,1}:
+ 2
+
+julia> add1(1)
+2
+
+julia> addn(5, 1)
+6
+
+julia> addn(5, 1.2)
+ERROR: Not implemented trait Add1 for (Float64).
+
+julia> add1([1.2])
+ERROR: Not implemented trait Add1 for (Float64).
+```
+
 ## Use Case from An Example: Gram-Schmidt Orthogonalization
 
 Traits manage constraints, making the constraints reasonable and decoupling implementations.
@@ -122,13 +172,11 @@ I tidied up the logic in this way:
 1. `Gram-Schmidt orthogonalization` is defined in an **inner product space**.
 2. An inner product space derives a trait, I call it `InnerProduct`.
 3. An inner prduct space is a vector space, with an additional structure called an inner product, which tells that we need a **vector space**.
-4. A vector space, a.k.a linear space, given a set of scalar numbers `F`, it is a carrier set `V` occupied with these operations:
+4. A vector space, a.k.a linear space, given a set of scalar numbers `F`, it is a carrier set `V` occupied with following operations, and we make a trait `Vect` for the vector space:
     - vector addition: `+ : V × V → V`
-    - scalar multiplication: `* : F × V → V`
-
-    Just make a trait `Vect` for the vector space.
-
-Then we can use `CanonicalTraits.jl` to transform above mathematical hierarchy into elegant Julia codes:
+    - scalar multiplication: `* : F × V → V`  
+    
+Now, we could use `CanonicalTraits.jl` to transform above mathematical hierarchy into elegant Julia codes:
 
 ```julia
 function scalartype_of_vectorspace end
@@ -206,3 +254,141 @@ julia> gram_schmidt!([1.0, 1, 1], [[1.0, 0, 0], [0, 1.0, 0]])
 Nice.
 
 Besides, note that `CanonicalTraits.jl` is zero-cost.
+
+## Use Case: Modeling Algebraic Structures
+
+```julia
+julia> @trait Monoid{A} begin
+                  mempty :: Type{A} => A
+                  # a method with two arguments
+                  (⊕)    :: [A, A] => A
+              end
+
+
+julia> @implement Monoid{Num} where Num <: Number begin
+           mempty(::Type{Num}) = zero(Num)
+           (a :: Num) ⊕ (b :: Num) = a + b
+       end
+
+julia> using BenchmarkTools
+
+julia> 3 ⊕ 2
+5
+
+julia> 3.0 ⊕ 2
+ERROR: MethodError: no method matching ⊕(::Float64, ::Int64)
+Closest candidates are:
+  ⊕(::A, ::A) where A
+
+julia> "" ⊕ ""
+ERROR: Not implemented trait Monoid for (String).
+
+julia> 3.0 ⊕ 2.0
+5.0
+
+julia> mempty(Int)
+0
+
+julia> mempty(Float32)
+0.0f0
+
+julia> @btime 100 ⊕ 200
+  0.018 ns (0 allocations: 0 bytes)
+300
+
+julia> @btime 100 + 200
+  0.018 ns (0 allocations: 0 bytes)
+300
+```
+
+## Zero Cost
+
+```julia-repl
+julia> using CanonicalTraits
+
+julia> @trait Add{L, R} begin
+           (+) :: [L, R] => Any
+           (+) = Base.:+
+       end
+
+julia> +
++ (generic function with 1 method)
+
+julia> @implement! Add{Int, Int}
+
+julia> @code_native 1 + 2
+	.text
+; ┌ @ none within `+' @ none:0
+	leaq	(%rdi,%rsi), %rax
+	retq
+	nopw	%cs:(%rax,%rax)
+; └
+
+julia> @code_native Base.:+(1, 2)
+	.text
+; ┌ @ int.jl:53 within `+'
+	leaq	(%rdi,%rsi), %rax
+	retq
+	nopw	%cs:(%rax,%rax)
+; └
+
+julia> function vec_add(x::Vector{T}, y::Vector{T}) where T <: Number
+           n = length(x)
+           n !== length(y) && error("mismatch")
+           s = zero(T)
+           for i in 1:n
+              s = Base.:+(s, @inbounds x[i] * y[i])
+           end
+           s
+       end;
+
+julia> eval(macroexpand(Base, :(Main.@btime $vec_add([1, 2, 3], [2, 3, 4]))))
+  156.788 ns (3 allocations: 336 bytes)
+3-element Array{Int64,1}:
+ 3
+ 5
+ 7
+
+# `+` by hand-written
+julia> @implement! Add{Vector{T}, Vector{T}} where T <: Number begin
+           @inline function (+)(x, y)
+              n = length(x)
+              n !== length(y) && error("mismatch")
+              T[xe + ye for (xe, ye) in zip(x, y)]
+           end
+       end
+
+# `+` by CanonicalTraits.jl       
+julia> eval(macroexpand(Base, :(Main.@btime $+([1, 2, 3], [2, 3, 4]))))
+  159.861 ns (3 allocations: 336 bytes)
+3-element Array{Int64,1}:
+ 3
+ 5
+ 7
+
+# Standard `+` operator
+julia> eval(macroexpand(Base, :(Main.@btime +([1, 2, 3], [2, 3, 4]))))
+  161.955 ns (3 allocations: 336 bytes)
+3-element Array{Int64,1}:
+ 3
+ 5
+ 7
+```
+
+
+## Limitations
+
+Due to the limitations of dynamic language, the type parameters occurred in trait signature should occur in the argument of each trait methods. Also, cannot define
+constants/singletons for traits because it's a technique
+for static typing.
+
+For Haskell users: `MultiParamTypeClasses` is supported. `FunctionalDependencies` is supported as well but need an explicit inference rule, like
+
+```julia
+@trait Dot{F, V} where {F = vect_infer_helper(V)} begin
+    dot :: [V, V] => F
+    gram_schmidt :: [V, Set{V}] => V
+end
+```
+
+Cannot list out all limitations here, if any problem, please open an issue or e-mail me.

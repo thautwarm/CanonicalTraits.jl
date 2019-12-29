@@ -1,7 +1,7 @@
 name = "CanonicalTraits"
 uuid = "a603d957-0e48-4f86-8fbd-0b7bc66df689"
 authors = ["thautwarm"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
