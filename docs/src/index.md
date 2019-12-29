@@ -107,7 +107,7 @@ vect_infer_helper(::Type{Tuple{F, F}}) where F<:Number = F
 end
 ```
 
-## Use Case from An Example: Gram-Schmidt orthogonalization
+## Use Case from An Example: Gram-Schmidt Orthogonalization
 
 Traits manage constraints, making the constraints reasonable and decoupling implementations.
 
@@ -119,13 +119,9 @@ After pondering for some time, I made a trait-based design for Gram-Schmidt orth
 
 I tidied up the logic in this way:
 
-1. `Gram-Schmidt orthogonalization` is defined
- in an **inner product space**.
-
+1. `Gram-Schmidt orthogonalization` is defined in an **inner product space**.
 2. An inner product space derives a trait, I call it `InnerProduct`.
-
 3. An inner prduct space is a vector space, with an additional structure called an inner product, which tells that we need a **vector space**.
-
 4. A vector space, a.k.a linear space, given a set of scalar numbers `F`, it is a carrier set `V` occupied with these operations:
     - vector addition: `+ : V × V → V`
     - scalar multiplication: `* : F × V → V`
