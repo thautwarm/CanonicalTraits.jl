@@ -86,15 +86,15 @@ end</code></pre><p><code>gram_schmidt!(a, [b, c, d])</code> will Gram-Schmidt or
 ERROR: MethodError: no method matching scalartype_of_vectorspace(::Type{Array{Float64,1}})</code></pre><p>Okay, we want to use <code>gram_schmidt!</code> on <code>Vector{Float64}</code>, but we have to implement <code>scalartype_of_vectorspace</code> first.</p><p>So we just say the scalar set is the real numbers&quot;</p><pre><code class="language-julia">julia&gt; scalartype_of_vectorspace(::Type{Vector{Float64}}) = Real
 
 julia&gt; gram_schmidt!([1.0, 1, 1], [[1.0, 0, 0], [0, 1.0, 0]])
-ERROR: Not implemented trait InnerProduct for (Real, Array{Float64,1}).</code></pre><p>Okay, we should implement <code>InnerProduct{Real, Vector{Float64}}</code>.</p><pre><code class="language-julia">julia&gt; @implement InnerProduct{Real, Vector{Float64}} begin
+ERROR: Not implemented trait InnerProduct for (Real, Array{Float64,1}).</code></pre><p>Okay, we should implement <code>InnerProduct{Real, Vector{Float64}}</code>.</p><pre><code class="language-julia">julia&gt; @implement! InnerProduct{T, Vector{Float64}} where T &lt;: Real begin
            dot(a, b) = sum([ai*bi  for (ai, bi) in zip(a, b)])
        end
 
 julia&gt; gram_schmidt!([1.0, 1, 1], [[1.0, 0, 0], [0, 1.0, 0]])
-ERROR: Not implemented trait Vect for (Float64, Array{Float64,1}).</code></pre><p>Okay, we implement <code>Vect{Real, Vector{Float64}}</code>.</p><pre><code class="language-julia">julia&gt; @implement Vect{Real, Vector{Float64}} begin
-          vec_add(x, y) = Float64[xi + yi for (xi, yi) in zip(x, y)]
-          scalar_mul(a, x) = Float64[(a)xi for xi in x]
-       end
+ERROR: Not implemented trait Vect for (Float64, Array{Float64,1}).</code></pre><p>Okay, we implement <code>Vect{Real, Vector{Float64}}</code>.</p><pre><code class="language-julia">julia&gt; @implement! Vect{T, Vector{Float64}} where T &lt;: Real begin
+        vec_add(x, y) = Float64[xi + yi for (xi, yi) in zip(x, y)]
+        scalar_mul(a, x) = Float64[(a)xi for xi in x]
+    end
 julia&gt; gram_schmidt!([1.0, 1, 1], [[1.0, 0, 0], [0, 1.0, 0]])
 3-element Array{Float64,1}:
  0.0
