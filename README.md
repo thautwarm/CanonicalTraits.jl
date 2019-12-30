@@ -31,7 +31,7 @@ end
   dot :: [V, V] => F
 end
 
-@trait VecSpace{F, V} >: Ortho{F, V} where
+@trait InnerProd{F, V} >: Ortho{F, V} where
   {F = V2F(V)} begin
   gram_schmidt! :: [V, Vector{V}] => V
 
