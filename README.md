@@ -9,7 +9,7 @@ Check documentations for more details.
 
 ## Features
 
-1. [Zero-cost](#Zero-cost) abstractions(via `@implement!`)
+1. [Zero-cost](https://thautwarm.github.io/CanonicalTraits.jl/dev/#Zero-Cost-1) abstractions(via `@implement!`)
 2. Multiple-param traits
 3. Functional dependencies
 4. Implemented via dictionay passing algorithm
