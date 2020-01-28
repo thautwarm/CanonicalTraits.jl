@@ -161,7 +161,7 @@ ERROR: Not implemented trait Add1 for (Float64).
 
 Traits manage constraints, making the constraints reasonable and decoupling implementations.
 
-In the late 2019, a friend of mine, Yinbo,
+In the late 2019, a friend of mine, Yingbo,
 asked me if traits can help writing orthogonalizations, because he is working for projects about JuliaDiffEq.
 
 
