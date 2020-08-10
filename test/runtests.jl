@@ -70,16 +70,16 @@ end
     vec_sub(vec1 :: V, vec2 :: V)     = vec_add(vec1, scalar_mul(-one(F), vec2))
 end
 
-vect_infer_helper(::Type{Poly{T}}) where T = T
+vect_infer_helper(::Type{Polynomial{T}}) where T = T
 
-@implement Vect{F, Poly{F}} where F <: Number begin
-    function scalar_mul(num::F, vec::Poly{F}) where F <: Number
+@implement Vect{F, Polynomial{F}} where F <: Number begin
+    function scalar_mul(num::F, vec::Polynomial{F}) where F <: Number
         num * vec
     end
-    function vec_add(vec1 :: Poly{F}, vec2 :: Poly{F}) where F <: Number
+    function vec_add(vec1 :: Polynomial{F}, vec2 :: Polynomial{F}) where F <: Number
         vec1 + vec2
     end
-    function scalar_add(scalar::F, vec::Poly{F}) where F <: Number
+    function scalar_add(scalar::F, vec::Polynomial{F}) where F <: Number
         scalar + vec
     end
 end
@@ -96,9 +96,9 @@ end
     end
 end
 
-@implement Dot{F, Poly{F}} where F <: Number begin
-    function dot(v1 :: Poly{F}, v2 :: Poly{F})::Real where F <: Number
-            f = polyint(v1 * v2)
+@implement Dot{F, Polynomial{F}} where F <: Number begin
+    function dot(v1 :: Polynomial{F}, v2 :: Polynomial{F})::Real where F <: Number
+            f = Polynomials.integrate(v1 * v2)
             f(1) - f(-1)
     end
 end
@@ -122,9 +122,9 @@ end
 
 @testset "polynomial orthogonalization" begin
 
-    @test scalar_add(5.0, Poly([2.0, 1.0])) == Poly([7.0, 1.0])
-    fx1 = Poly([1.0])
-    fx2 = Poly([0.0, 1.0])
+    @test scalar_add(5.0, Polynomial([2.0, 1.0])) == Polynomial([7.0, 1.0])
+    fx1 = Polynomial([1.0])
+    fx2 = Polynomial([0.0, 1.0])
     T = typeof(fx1)
     fx1_ot = gram_schmidt(fx1, T[])
     fx2_ot = gram_schmidt(fx2, T[fx1_ot])
