@@ -166,5 +166,5 @@ end
 rmlines!(a) = a
 
 macro q(exp)
-   Expr(:quote, rmlines!(exp))
+    esc(Expr(:quote, rmlines!(exp)))
 end
