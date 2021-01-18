@@ -90,8 +90,8 @@ vec_sub    :: [V, V] => V
 ```
 
 However, for instance, we know,
-- when `V`  is `Vector{T}`, `V` is `T`.
-- when `V` is `NTuple{5, T}`, `V` is `T`
+- when `V`  is `Vector{T}`, `F` is `T`.
+- when `V` is `NTuple{5, T}`, `F` is `T`
 - etc.
 
 This is called functional dependency, and to work with this, we provide the capability of using this, check the head of the definition of `Vect`:
