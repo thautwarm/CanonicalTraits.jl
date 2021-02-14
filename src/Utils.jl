@@ -142,7 +142,7 @@ end
 
 function extract_trait_mk(sig)
     sups = Expr[]
-    @when :($sup >: $me) = sig begin
+    @when (:($sup >: $me) || :($me <: $sup)) = sig begin
         sig = me
         for each in @match sup begin
             :[$(elts...)] => elts
