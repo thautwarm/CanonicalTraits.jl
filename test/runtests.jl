@@ -200,7 +200,7 @@ end
     add1 :: [T] => T
 end
 
-@trait Add1{T} >: Addn{T <: Number} begin
+@trait Addn{T <: Number} <: Add1{T}  begin
     addn :: [Int, T] => T
     addn(n, x) = let s = x; for i in 1:n; s = add1(s) end; s; end
 end
@@ -222,7 +222,7 @@ end
     end
 end
 
-@implement! Add1{T} >: Add1{Vector{T}} where T begin
+@implement! (Add1{Vector{T}} where T) <: Add1{T} begin
     add1(xs) = add1.(xs)
 end
 
