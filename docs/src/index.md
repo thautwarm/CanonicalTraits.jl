@@ -8,7 +8,7 @@
 1. [Zero-cost](#Zero-cost) abstractions(via `@implement!`)
 2. Multiple-param traits
 3. Functional dependencies
-4. Implemented via dictionay passing algorithm
+4. Implemented via dictionary passing algorithm
 5. Elegant notations
 6. Flexible Instances & Flexible Classes
 
